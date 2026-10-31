@@ -24,6 +24,7 @@ if ($Test) {
     if ($panelCheck.ExitCode -ne 0) {throw 'Panel self-test failed.'}
     Get-Content -LiteralPath (Join-Path $help 'ControlPanel\self-test.txt')
     & (Join-Path $root 'tests\deploy.Tests.ps1') -PackageRoot $out
+    & (Join-Path $root 'tests\launcher.Tests.ps1') -PackageRoot $out
 }
 $artifacts=Join-Path $root 'artifacts'
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
