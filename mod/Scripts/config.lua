@@ -5,6 +5,7 @@ return {
     ParryTapFX = true,
     ParryTapSound = true,
     Debug = false,
+    WarningColorsEnabled = false,
     GuardKey = "G",
     ParryKey = "RightMouseButton",
     ParryCostPercent = 0.03,

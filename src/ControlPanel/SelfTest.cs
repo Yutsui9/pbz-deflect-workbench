@@ -9,8 +9,9 @@ namespace PBZGuardPanel {
             string report=Path.Combine(root,@"_ModWork\YanyunGuard\ControlPanel\self-test.txt");
             try {
                 var store=new ConfigStore(area);Directory.CreateDirectory(store.ScriptsPath);
-                var c=new GuardConfig();c.ParryKey="H";c.ParryCostPercent=.075m;c.Enabled=false;
+                var c=new GuardConfig();c.ParryKey="H";c.ParryCostPercent=.075m;c.Enabled=false;c.WarningColorsEnabled=true;
                 string text=c.Serialize();var parsed=GuardConfig.Parse(text);
+                Check(parsed.WarningColorsEnabled,"Warning colours opt-in round-trip");
                 Check(parsed.Serialize()==text,"Full schema round-trip, including disabled state");
                 Check(parsed.SuccessChainEnabled && parsed.SuccessChainMaxStacks==3 && parsed.SuccessChainRefundStep==.02m,"Chain defaults round-trip");
                 bool chainRejected=false;c.SuccessChainMaxStacks=2.5m;try{c.Validate();}catch(InvalidDataException){chainRejected=true;}Check(chainRejected,"Reject fractional chain stacks");c.SuccessChainMaxStacks=3;
@@ -21,7 +22,7 @@ namespace PBZGuardPanel {
                 string first=store.Apply(c);Check(store.Load().Enabled,"Apply persists enabled");
                 Check(File.ReadAllText(Path.Combine(store.ScriptsPath,"control.request")).Contains(first+"\nAPPLY"),"Apply queues correct request");
                 string second=store.RestoreVanilla();var off=store.Load();
-                Check(!off.Enabled && off.ParryKey=="H" && off.ParryCostPercent==.075m,"Vanilla restore preserves user tuning");
+                Check(!off.Enabled && off.WarningColorsEnabled && off.ParryKey=="H" && off.ParryCostPercent==.075m,"Vanilla restore preserves user tuning");
                 Check(second!=first && File.ReadAllText(Path.Combine(store.ScriptsPath,"control.request")).Contains("RESTORE"),"Restore queues fresh request");
                 string before=File.ReadAllText(store.ConfigPath);c.ParryKey="F7";rejected=false;try{store.Apply(c);}catch(InvalidDataException){rejected=true;}
                 Check(rejected && File.ReadAllText(store.ConfigPath)==before,"Invalid input cannot partially save");

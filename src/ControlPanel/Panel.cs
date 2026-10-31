@@ -29,7 +29,7 @@ namespace PBZGuardPanel {
             shell.RowStyles.Add(new RowStyle(SizeType.Absolute,36));shell.RowStyles.Add(new RowStyle(SizeType.Absolute,58));Controls.Add(shell);
             var header=new Panel{Dock=DockStyle.Fill};shell.Controls.Add(header,0,0);
             header.Controls.Add(new Label{Text="卸势调校台",Font=new Font(Font.FontFamily,22,FontStyle.Bold),ForeColor=ink,AutoSize=true,Location=new Point(0,0)});
-            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.2.5",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
+            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.2.7",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
             connection.AutoSize=true;connection.Location=new Point(3,78);connection.ForeColor=Color.FromArgb(111,214,195);header.Controls.Add(connection);
             configState.AutoSize=true;configState.Anchor=AnchorStyles.Right|AnchorStyles.Top;configState.TextAlign=ContentAlignment.MiddleRight;configState.Location=new Point(625,18);header.Controls.Add(configState);
             var tabs=new TabControl{Dock=DockStyle.Fill,Padding=new Point(20,9),DrawMode=TabDrawMode.OwnerDrawFixed};
@@ -54,6 +54,9 @@ namespace PBZGuardPanel {
             AddNumber(feedback,"剑光最小间隔","两次闪光起点之间的间隔，需比时长至少多 60 毫秒。","BladeFlashMinInterval",100,2000,10,0,1000,"毫秒");
             AddCheck(feedback,"启用轻金属音效","每次有效点按播放，长按防御不会持续播放。","ParryTapSound");
             AddNumber(feedback,"附加音效音量","相对这段原生音效的输出增益，0 为静音。","ParryTapSoundVolume",0,100,1,0,100,"%");
+            var warning=Page(tabs,"出招预警");
+            AddCheck(warning,"燕云黄红预警（试验）","闪避预警黄光，卸势预警红光。","WarningColorsEnabled");
+            AddNote(warning,"保留原来的提示时机与招式判定；关闭可恢复原配色。\n教学提示同步为格挡红光、闪避黄光；处于试验阶段。");
             var streak=Page(tabs,"连续卸势奖励");
             AddCheck(streak,"启用连续成功奖励","成功清除已积累的连按惩罚；从第二次成功起叠加奖励。","SuccessChainEnabled");
             AddNumber(streak,"成功衔接时间","在此时间内再次成功可续连胜；空按落空或普通防御清空。","SuccessChainTimeout",1,15,.5m,1,1,"秒");

@@ -15,6 +15,7 @@ namespace PBZGuardPanel {
         public decimal ParryLowerSpeed=1.50m, PerfectParryRefundPercent=.10m, PerfectParryPoisePercent=.10m;
         public bool SuccessChainEnabled=true;
         public bool ParryTapShake=true;
+        public bool WarningColorsEnabled=false;
         public decimal SuccessChainTimeout=6m, SuccessChainMaxStacks=3m, SuccessChainRefundStep=.02m, SuccessChainPoiseStep=.02m;
         public decimal ParryTapSoundVolume=.24m, GuardDrainMultiplier=1.15m, GuardDrainStartDelay=.20m;
         public decimal NormalUltimateMultiplier=.80m, PerfectUltimateMultiplier=1.10m;

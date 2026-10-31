@@ -44,6 +44,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\Install.ps1 -GameRo
 - 当前武器举刀动画被用于 160ms 的上半身抖刀片段，命中和其他战斗反馈优先。无需把游戏动画复制到仓库。
 - 配置自动备份，可随时启用或还原原版；键鼠分键，手柄保留原生输入。
 
+## 黄红预警试验
+
+在“出招预警”开启“燕云黄红预警（试验）”，闪避预警改为金黄、卸势预警改为红色，并同步修改对应的中文教学提示及文字颜色。默认关闭，已有调参保留；关闭开关或还原原版会恢复原生配色和提示。
+
+金黄光圈采用古金主体、黄铜暗部和暖白高光，降低发光强度及烟雾不透明度，收紧高光范围。使用游戏原生特效纹理，保留动态溶解、粒子寿命与原有预警时机。当前场景已由玩家实战确认，其他特效变体仍需验证。
+
 ## 热加载与排错
 
 **优先用面板“启用并应用”**，面板会显示应用结果。切回游戏后才会继续处理请求。
@@ -91,7 +97,7 @@ gh release create v0.2.4 artifacts/*.zip artifacts/*.sha256 --verify-tag --gener
 
 Windows 编译和部署测试自动化；游戏战斗与动画只能由实际游戏验证。当前长刀抖刀效果已有玩家确认，其他武器仍需验证。
 
-维护者也可安装 `requirements-dev.txt` 中的 Lupa，运行 `python tests/test_success_chain.py` 与 `python tests/test_tap_motion.py`，检查 Lua 语法、连胜奖励、重复事件、回气上限和动作切换。GitHub Actions 会执行这些模拟检查；安装包用户无需 Python。
+维护者也可安装 `requirements-dev.txt` 中的 Lupa，运行 `python tests/test_success_chain.py`、`python tests/test_tap_motion.py` 与 `python tests/test_warning_colors.py`，检查 Lua 语法、连胜奖励、重复事件、回气上限、动作切换、预警改色和关闭还原。GitHub Actions 会执行这些模拟检查；安装包用户无需 Python。
 
 ## 许可与依赖
 
