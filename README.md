@@ -75,6 +75,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test
 3. 提交代码并推送 `main`；GitHub Actions 自动构建并保存 Windows 安装包。
 4. 创建并推送 `v版本号` 标签，例如 `v0.2.4`；工作流自动发布 Release 与校验文件。
 
+托管 Runner 不可用时，也可以本地运行 `build.ps1 -Test`，推送版本标签后，用 GitHub CLI 发布已经验证的本地构建：
+
+```powershell
+gh release create v0.2.4 artifacts/*.zip artifacts/*.sha256 --verify-tag --generate-notes --title v0.2.4
+```
+
+自动发布支持重跑：已存在同名 Release 时更新附件，不重复创建。
+
 Windows 编译和部署测试自动化；游戏战斗与动画只能由实际游戏验证。当前长刀抖刀效果已有玩家确认，其他武器仍需验证。
 
 维护者也可安装 `requirements-dev.txt` 中的 Lupa，运行 `python tests/test_success_chain.py` 与 `python tests/test_tap_motion.py`，检查 Lua 语法、连胜奖励、重复事件、回气上限和动作切换。GitHub Actions 会执行这些模拟检查；安装包用户无需 Python。
