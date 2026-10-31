@@ -27,7 +27,18 @@ try {
         }
     }
     if (!$GameRoot) {
-        if ($NonInteractive) {throw 'NonInteractive requires -GameRoot.'}
+        . (Join-Path $PSScriptRoot 'SteamPaths.ps1')
+        $detected=@(Find-PBZSteamGameRoot)
+        if ($detected.Count -eq 1) {
+            $GameRoot=$detected[0]
+            Write-Host ('已从 Steam 自动识别游戏目录：'+$GameRoot)
+        } elseif ($detected.Count -gt 1) {
+            Write-Host 'Steam 中找到多个游戏副本，请手动选择本次要操作的目录。'
+            $detected | ForEach-Object {Write-Host ('  '+$_)}
+        } else {Write-Host '未在 Steam 游戏库中找到有效游戏目录，请手动选择。'}
+    }
+    if (!$GameRoot) {
+        if ($NonInteractive) {throw '无法自动确定唯一游戏目录，请提供 -GameRoot。'}
         Add-Type -AssemblyName System.Windows.Forms
         $dialog=New-Object System.Windows.Forms.FolderBrowserDialog
         try {

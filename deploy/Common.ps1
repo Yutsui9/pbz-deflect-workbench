@@ -1,6 +1,11 @@
 ﻿$ErrorActionPreference='Stop'
 function Get-GameRoot([string]$Path) {
-    if (!$Path) {$Path=Read-Host '输入 Steam 游戏目录（包含 platform 和 ProjectPBZ 的 PBZ 文件夹）'}
+    if (!$Path) {
+        . (Join-Path $PSScriptRoot 'SteamPaths.ps1')
+        $found=@(Find-PBZSteamGameRoot)
+        if($found.Count -eq 1){$Path=$found[0];Write-Host ('已从 Steam 自动识别游戏目录：'+$Path)}
+        else {$Path=Read-Host '输入 Steam 游戏目录（包含 platform 和 ProjectPBZ 的 PBZ 文件夹）'}
+    }
     $root=[IO.Path]::GetFullPath($Path.Trim('"')).TrimEnd('\')
     if (!(Test-Path -LiteralPath (Join-Path $root 'platform\steam\PBZ.exe'))) {throw '不是有效的 PBZ 游戏根目录：找不到 platform\steam\PBZ.exe。'}
     return $root

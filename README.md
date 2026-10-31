@@ -5,7 +5,7 @@
 ## 三步安装
 
 1. 在本仓库 **Releases** 下载 `pbz-deflect-workbench-v…-windows-x64.zip`，完整解压到游戏目录之外。
-2. 关闭游戏和旧配置面板，双击 **安装.cmd**，在弹出的目录选择框中选择 Steam 的 `PBZ` 游戏根目录（其中应有 `platform\steam\PBZ.exe`）。首次安装会下载并校验适配 UE4SS，现有加载器不覆盖；已有参数保留，存档自动复制备份。
+2. 关闭游戏和旧配置面板，双击 **安装.cmd**，安装器会先自动识别 Steam 游戏库中的有效游戏目录；找不到或找到多个副本时，再手动选择 `PBZ` 游戏根目录（其中应有 `platform\steam\PBZ.exe`）。首次安装会下载并校验适配 UE4SS，现有加载器不覆盖；已有参数保留，存档自动复制备份。
 3. 双击游戏目录里的 **卸势调校台.exe**，点击 **启用并应用**，从 Steam 启动游戏并进入场景。
 
 不需要联网账号、服务器或运行 Python。面板是 Windows 自带 .NET Framework 的 WinForms 程序。首次下载 UE4SS 需要网络。安装到受系统保护的目录时，需要该目录的写入权限。
@@ -18,7 +18,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\Install.ps1 -GameRo
 
 ## 安装窗口很小、按任意键后关闭？
 
-“按任意键”只是关闭最后的控制台窗口，不代表安装成功。v0.2.5 开始会弹出目录选择框及明确的成功/失败提示，详细日志保存在 `%TEMP%\PBZDeflectWorkbench\setup-*.log`。
+“按任意键”只是关闭最后的控制台窗口，不代表安装成功。v0.2.8 会先自动识别 Steam 游戏库，无法确定唯一目录时才弹出目录选择框；操作结束显示明确的成功/失败提示，详细日志保存在 `%TEMP%\PBZDeflectWorkbench\setup-*.log`。
 
 请下载 **Releases 附件中的 windows-x64.zip**，不要下载页面底部自动生成的 Source code。完整解压后再运行“安装.cmd”，不要直接在压缩包内双击。若没有出现选择目录的窗口，先看控制台是否提示 `PACKAGE INCOMPLETE` 或缺少 PowerShell。失败时将结果提示或日志中的错误部分提供给维护者；日志可能包含本机路径，请先检查再分享。
 
@@ -104,3 +104,5 @@ Windows 编译和部署测试自动化；游戏战斗与动画只能由实际游
 本仓库原创 C#、Lua 和部署脚本按 [MIT](LICENSE) 发布，不包含游戏资源、存档、个人日志、反射头文件或第三方 DLL。
 
 UE4SS 是独立的 MIT 项目；安装器从[游戏适配版官方发布页](https://github.com/KintaroModding/ue4ss/releases/tag/v3.0.1-1188-gf885e8d2)下载固定版本并验证 SHA-256。另见 [UE4SS 上游](https://github.com/UE4SS-RE/RE-UE4SS)和[安装文档](https://docs.ue4ss.com/installation-guide)。游戏及其动画、音效属于各自权利人，本项目仅在运行时调用已有资源。
+
+自动识别读取 Steam 注册表位置、`libraryfolders.vdf` 和游戏安装清单，支持 Steam 装在其他盘、多个游戏库及中文路径。只有包含 `platform\steam\PBZ.exe` 的目录才会被接受，不会扫描整块硬盘。显式传入的 `-GameRoot` 优先于自动识别；卸载入口也使用同样的识别逻辑。
