@@ -1,0 +1,14 @@
+/dist/
+/artifacts/
+/.test-work/
+*.exe
+*.dll
+*.pdb
+*.zip
+*.sav
+*.dmp
+*.log
+control.request
+control.status
+__pycache__/
+*.pyc
