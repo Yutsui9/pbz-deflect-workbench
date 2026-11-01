@@ -29,7 +29,7 @@ namespace PBZGuardPanel {
             shell.RowStyles.Add(new RowStyle(SizeType.Absolute,36));shell.RowStyles.Add(new RowStyle(SizeType.Absolute,58));Controls.Add(shell);
             var header=new Panel{Dock=DockStyle.Fill};shell.Controls.Add(header,0,0);
             header.Controls.Add(new Label{Text="卸势调校台",Font=new Font(Font.FontFamily,22,FontStyle.Bold),ForeColor=ink,AutoSize=true,Location=new Point(0,0)});
-            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.2.8",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
+            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.2.9",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
             connection.AutoSize=true;connection.Location=new Point(3,78);connection.ForeColor=Color.FromArgb(111,214,195);header.Controls.Add(connection);
             configState.AutoSize=true;configState.Anchor=AnchorStyles.Right|AnchorStyles.Top;configState.TextAlign=ContentAlignment.MiddleRight;configState.Location=new Point(625,18);header.Controls.Add(configState);
             var tabs=new TabControl{Dock=DockStyle.Fill,Padding=new Point(20,9),DrawMode=TabDrawMode.OwnerDrawFixed};

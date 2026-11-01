@@ -9,6 +9,9 @@ foreach($file in @('platform\steam\PBZ.exe','platform\steam\dwmapi.dll','platfor
 function Check([bool]$ok,[string]$label) {if(!$ok){throw ('FAIL: '+$label)}}
 $install=Join-Path $PackageRoot 'deploy\Install.ps1'
 $uninstall=Join-Path $PackageRoot 'deploy\Uninstall.ps1'
+$fixtureHelper=Join-Path $game 'platform\steam\ue4ss\Mods\shared\UEHelpers\UEHelpers.lua'
+New-Item -ItemType Directory -Path (Split-Path $fixtureHelper) -Force | Out-Null
+[IO.File]::WriteAllText($fixtureHelper,'return {}')
 & $install -GameRoot $game
 $mod=Join-Path $game 'platform\steam\ue4ss\Mods\PBZYanyunGuard'
 $cfg=Join-Path $mod 'Scripts\config.lua'

@@ -1,4 +1,4 @@
-﻿param([string]$GameRoot,[switch]$InstallUE4SS)
+﻿param([string]$GameRoot,[switch]$InstallUE4SS,[string]$UE4SSArchive)
 . (Join-Path $PSScriptRoot 'Common.ps1')
 $game=Get-GameRoot $GameRoot
 Assert-Closed $game
@@ -8,26 +8,48 @@ $work=In-Root $game '_ModWork\DeflectWorkbench'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 $stamp=[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-ffff')
 $loader=In-Root $game 'platform\steam\ue4ss\UE4SS.dll'
-if (!(Test-Path -LiteralPath $loader)) {
-    if (!$InstallUE4SS) {throw '缺少 UE4SS。用 -InstallUE4SS 自动安装已验证的游戏专用版本，或先自行安装兼容版本。'}
+$helperCandidates=@('platform\steam\ue4ss\Mods\shared\UEHelpers\UEHelpers.lua','platform\steam\ue4ss\Mods\shared\UEHelpers.lua','platform\steam\ue4ss\UEHelpers.lua')
+$helperFound=@($helperCandidates | ForEach-Object {In-Root $game $_} | Where-Object {(Test-Path -LiteralPath $_ -PathType Leaf) -and (Get-Item -LiteralPath $_).Length -gt 0})
+$freshLoader=!(Test-Path -LiteralPath $loader)
+if ($freshLoader -or $helperFound.Count -eq 0) {
+    if (!$InstallUE4SS) {throw '缺少完整 UE4SS 依赖（UE4SS.dll 或 UEHelpers）。请运行新版安装.cmd 自动补齐，或使用 -InstallUE4SS。'}
     $proxy=In-Root $game 'platform\steam\dwmapi.dll'
-    if (Test-Path -LiteralPath $proxy) {throw '已存在 dwmapi.dll，但未找到 UE4SS.dll；为避免覆盖其他加载器，请先处理冲突。'}
+    if ($freshLoader -and (Test-Path -LiteralPath $proxy)) {throw '已存在 dwmapi.dll，但未找到 UE4SS.dll；为避免覆盖其他加载器，请先处理冲突。'}
+    if (!$freshLoader -and !(Test-Path -LiteralPath $proxy)) {throw '已有 UE4SS.dll 但缺少 dwmapi.dll，请先修复加载器。'}
     $url='https://github.com/KintaroModding/ue4ss/releases/download/v3.0.1-1188-gf885e8d2/phantombladezero_ue4ss_v3.0.1-1188-gf885e8d2.zip'
-    $archive=Join-Path $work ('ue4ss-'+$stamp+'.zip')
-    [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
+    $archive=$UE4SSArchive
+    if (!$archive) {
+        $archive=Join-Path $work ('ue4ss-'+$stamp+'.zip')
+        [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
+    }
     if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '14acc9a34d3b3278860b63513544ac3f6e4759a673e57d6c0b5d3992b2ca5f28') {throw 'UE4SS checksum mismatch; no loader installed.'}
     $extract=Join-Path $work ('loader-'+$stamp)
     Expand-Archive -LiteralPath $archive -DestinationPath $extract
     $candidate=@(Get-ChildItem -LiteralPath $extract -Filter dwmapi.dll -Recurse | Where-Object {Test-Path -LiteralPath (Join-Path $_.DirectoryName 'ue4ss\UE4SS.dll')})
     if ($candidate.Count -ne 1) {throw 'Unexpected UE4SS archive layout.'}
-    $settings=Join-Path $candidate[0].DirectoryName 'ue4ss\UE4SS-settings.ini'
-    if (Test-Path -LiteralPath $settings) {
-        $text=[IO.File]::ReadAllText($settings) -replace '(?m)^EnableHotReloadSystem\s*=.*$','EnableHotReloadSystem = 0' -replace '(?m)^EnableAutoReloadingLuaMods\s*=.*$','EnableAutoReloadingLuaMods = 0'
-        Write-Utf8 $settings $text
+    $helperSource=Join-Path $candidate[0].DirectoryName 'ue4ss\Mods\shared\UEHelpers\UEHelpers.lua'
+    if (!(Test-Path -LiteralPath $helperSource)) {throw '验证后的加载器包缺少 UEHelpers，未安装。'}
+    if ($freshLoader) {
+        $settings=Join-Path $candidate[0].DirectoryName 'ue4ss\UE4SS-settings.ini'
+        if (Test-Path -LiteralPath $settings) {
+            $text=[IO.File]::ReadAllText($settings) -replace '(?m)^EnableHotReloadSystem\s*=.*$','EnableHotReloadSystem = 0' -replace '(?m)^EnableAutoReloadingLuaMods\s*=.*$','EnableAutoReloadingLuaMods = 0'
+            Write-Utf8 $settings $text
+        }
+        Copy-Item -LiteralPath $candidate[0].FullName -Destination (Split-Path $proxy)
+        Copy-Item -LiteralPath (Join-Path $candidate[0].DirectoryName 'ue4ss') -Destination (Split-Path $proxy) -Recurse -Force
+    } else {
+        $helperTarget=In-Root $game $helperCandidates[0]
+        New-Item -ItemType Directory -Path (Split-Path $helperTarget) -Force | Out-Null
+        if(Test-Path -LiteralPath $helperTarget) {
+            $backup=Join-Path $work ('DependencyBackups\'+$stamp)
+            New-Item -ItemType Directory -Path $backup -Force | Out-Null
+            Copy-Item -LiteralPath $helperTarget -Destination (Join-Path $backup 'UEHelpers.lua')
+        }
+        Copy-Item -LiteralPath $helperSource -Destination $helperTarget -Force
+        Copy-Item -LiteralPath (Join-Path $candidate[0].DirectoryName 'ue4ss\LICENSE') -Destination (Join-Path (Split-Path $helperTarget) 'LICENSE.ue4ss.txt') -Force
+        Write-Output '已补齐 UEHelpers 辅助脚本；已有 UE4SS DLL、设置和其他模组保持不变。'
     }
-    Copy-Item -LiteralPath $candidate[0].FullName -Destination (Split-Path $proxy)
-    Copy-Item -LiteralPath (Join-Path $candidate[0].DirectoryName 'ue4ss') -Destination (Split-Path $proxy) -Recurse -Force
 }
 if (!(Test-Path -LiteralPath (In-Root $game 'platform\steam\dwmapi.dll'))) {throw 'UE4SS.dll exists but dwmapi.dll is missing. Repair UE4SS first.'}
 # Copy saves only; never change the active save or Steam Cloud preferences.

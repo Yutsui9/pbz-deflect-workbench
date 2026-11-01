@@ -4,6 +4,9 @@ $area=Join-Path (Split-Path $PSScriptRoot) ('.test-work\launcher-'+[Guid]::NewGu
 $game=Join-Path $area '中文 测试 PBZ'
 New-Item -ItemType Directory -Path (Join-Path $game 'platform\steam\ue4ss') -Force | Out-Null
 foreach($file in @('platform\steam\PBZ.exe','platform\steam\dwmapi.dll','platform\steam\ue4ss\UE4SS.dll')) {[IO.File]::WriteAllText((Join-Path $game $file),'fixture; never executable')}
+$fixtureHelper=Join-Path $game 'platform\steam\ue4ss\Mods\shared\UEHelpers\UEHelpers.lua'
+New-Item -ItemType Directory -Path (Split-Path $fixtureHelper) -Force | Out-Null
+[IO.File]::WriteAllText($fixtureHelper,'return {}')
 $launch=Join-Path $PackageRoot 'deploy\Launch.ps1'
 function Check([bool]$condition,[string]$label) {if(!$condition){throw ('FAIL: '+$label)}}
 $good=Join-Path $area 'success.log'

@@ -106,3 +106,9 @@ Windows 编译和部署测试自动化；游戏战斗与动画只能由实际游
 UE4SS 是独立的 MIT 项目；安装器从[游戏适配版官方发布页](https://github.com/KintaroModding/ue4ss/releases/tag/v3.0.1-1188-gf885e8d2)下载固定版本并验证 SHA-256。另见 [UE4SS 上游](https://github.com/UE4SS-RE/RE-UE4SS)和[安装文档](https://docs.ue4ss.com/installation-guide)。游戏及其动画、音效属于各自权利人，本项目仅在运行时调用已有资源。
 
 自动识别读取 Steam 注册表位置、`libraryfolders.vdf` 和游戏安装清单，支持 Steam 装在其他盘、多个游戏库及中文路径。只有包含 `platform\steam\PBZ.exe` 的目录才会被接受，不会扫描整块硬盘。显式传入的 `-GameRoot` 优先于自动识别；卸载入口也使用同样的识别逻辑。
+
+### UEHelpers 缺失报错
+
+如果游戏日志出现 `module 'UEHelpers' not found`，说明已有 UE4SS 缺少共享辅助模块。退出游戏和面板后运行 v0.2.9 或更新版本的“安装.cmd”，安装器会检测缺失/空文件，从固定版本、经过 SHA-256 校验的上游包补齐 `Mods/shared/UEHelpers/UEHelpers.lua`，保留已有 DLL、设置、其他模组与用户配置。修复后必须重启游戏，F5 无法重启一个启动时就加载失败的模组。
+
+离线修复可提前下载上述固定版本的 UE4SS 压缩包，然后运行 `deploy/Install.ps1 -GameRoot 游戏目录 -InstallUE4SS -UE4SSArchive 压缩包路径`；同样会校验文件哈希。完整的已有 UEHelpers 不会被替换，共享依赖不会随本模组卸载。

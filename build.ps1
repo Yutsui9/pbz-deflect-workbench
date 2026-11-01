@@ -26,6 +26,7 @@ if ($Test) {
     & (Join-Path $root 'tests\deploy.Tests.ps1') -PackageRoot $out
     & (Join-Path $root 'tests\launcher.Tests.ps1') -PackageRoot $out
     & (Join-Path $root 'tests\steam-paths.Tests.ps1') -PackageRoot $out
+    & (Join-Path $root 'tests\loader-repair.Tests.ps1') -PackageRoot $out
 }
 $artifacts=Join-Path $root 'artifacts'
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
