@@ -5,6 +5,14 @@ local texts={}
 local rendererColors={}
 local gpuGlows={}
 local last=-10
+local scan,signature=nil,nil
+local needsScan=false
+local signatureChangedAt=-10
+local debugLog=false
+local widgetQueue,widgetQueued={},{}
+local textOwner={}
+_G.PBZWarningTextRouter=_G.PBZWarningTextRouter or {hooked=false}
+local textRouter=_G.PBZWarningTextRouter
 local failed=false
 local root='/PBZVFXPack/VFX/BattleFX/'
 local systems={
@@ -35,10 +43,9 @@ local goldPalette={
  Main_Color_0={1,0.86,0.48}, Main_Color_1={0.82,0.54,0.13},
  Main_Color_2={0.46,0.25,0.07}, EdgeColor={1,0.88,0.55},
 }
-local function patchRendererColors()
+local function patchRendererColors(objects,class)
  local changed=0
- for _,class in ipairs({'NiagaraSpriteRendererProperties','NiagaraMeshRendererProperties','NiagaraRibbonRendererProperties'}) do
-  for _,o in ipairs(FindAllOf(class) or {}) do
+  for _,o in ipairs(objects) do
    local name=o:GetFullName()
    local k=kind(name)
    local key=tostring(o:GetAddress())
@@ -81,16 +88,15 @@ local function patchRendererColors()
     rendererColors[key]=snapshot
    end
   end
- end
- if changed>0 then print('[YanyunGuard] Warning layered renderer colours: parameters='..changed..'\n') end
+ if changed>0 and debugLog then print('[YanyunGuard] Warning layered renderer colours: parameters='..changed..'\n') end
 end
 local function restoreBinding(o,old)
  local b=o.ColorBinding
  b.RootName=FName(old.root);b.ParamMapVariable.Name=FName(old.param);b.DataSetName=FName(old.dataset);b.bBindingExistsOnSource=old.exists
 end
-local function patchDodgeLayers()
+local function patchDodgeLayers(objects)
  local count=0
- for _,o in ipairs(FindAllOf('NiagaraSpriteRendererProperties') or {}) do
+ for _,o in ipairs(objects) do
   local name=o:GetFullName();local key=tostring(o:GetAddress())
   if kind(name)=='dodge' and not gpuGlows[key] then
    if valid(o.Material) then
@@ -133,10 +139,10 @@ local function patchDodgeLayers()
    end
   end
  end
- if count>0 then print('[YanyunGuard] Gold warning sprite layers='..count..' (native textures, softened smoke)\n') end
+ if count>0 and debugLog then print('[YanyunGuard] Gold warning sprite layers='..count..' (native textures, softened smoke)\n') end
 end
-local function patchText()
- for _,o in ipairs(FindAllOf('PBZCommonLocRichText') or {}) do
+local function patchText(objects)
+ for _,o in ipairs(objects) do
   if not o:GetFullName():find('Default__',1,true) then
    local original=o:GetText()
    local raw=original:ToString()
@@ -158,6 +164,9 @@ local function patchText()
  end
 end
 function M.clear()
+ if textRouter.owner==textOwner then textRouter.owner=nil end
+ scan=nil;signature=nil;needsScan=false;last=-10
+ widgetQueue={};widgetQueued={}
  local pendingGPU={}
  for key,s in pairs(gpuGlows) do
   if valid(s.object) and s.object:GetFullName()==s.name then
@@ -207,28 +216,10 @@ function M.clear()
  texts=pendingTexts
  saved=pending;last=-10;failed=false
 end
-function M.tick(c,now)
- if not c.WarningColorsEnabled then if next(saved) or next(texts) or next(rendererColors) or next(gpuGlows) then M.clear() end;return end
- if failed or (now>=last and now-last<1) then return end
- last=now
- local ok,err=pcall(function()
-  for key,snapshot in pairs(saved) do
-   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then saved[key]=nil end
-  end
-  for key,snapshot in pairs(texts) do
-   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then texts[key]=nil end
-  end
-  for key,snapshot in pairs(rendererColors) do
-   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then rendererColors[key]=nil end
-  end
-  for key,snapshot in pairs(gpuGlows) do
-   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then gpuGlows[key]=nil end
-  end
-  patchText()
-  patchRendererColors()
-  patchDodgeLayers()
+local classes={'NiagaraSpriteRendererProperties','NiagaraMeshRendererProperties','NiagaraRibbonRendererProperties','NiagaraDataInterfaceColorCurve','PBZCommonLocRichText'}
+local function patchCurves(objects)
   local count=0
-  for _,o in ipairs(FindAllOf('NiagaraDataInterfaceColorCurve') or {}) do
+  for _,o in ipairs(objects) do
    local name=o:GetFullName()
    local k=kind(name)
    local key=tostring(o:GetAddress())
@@ -256,7 +247,99 @@ function M.tick(c,now)
     end
    end
   end
-  if count>0 then print('[YanyunGuard] Warning colours: dodge=yellow deflect=red; curves='..count..'\n') end
+  if count>0 and debugLog then print('[YanyunGuard] Warning colours: dodge=yellow deflect=red; curves='..count..'\n') end
+end
+local function beginScan()
+  for key,snapshot in pairs(saved) do
+   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then saved[key]=nil end
+  end
+  for key,snapshot in pairs(texts) do
+   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then texts[key]=nil end
+  end
+  for key,snapshot in pairs(rendererColors) do
+   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then rendererColors[key]=nil end
+  end
+  for key,snapshot in pairs(gpuGlows) do
+   if not valid(snapshot.object) or snapshot.object:GetFullName()~=snapshot.name then gpuGlows[key]=nil end
+  end
+
+ scan={class=1,index=1}
+ needsScan=false
+end
+local function assetSignature()
+ local parts={}
+ for path in pairs(systems) do
+  local asset=path:match('([^/]+)$')
+  local o=StaticFindObject(root..path..'.'..asset)
+  parts[#parts+1]=path..'='..(valid(o) and tostring(o:GetAddress()) or 'none')
+ end
+ table.sort(parts)
+ return table.concat(parts,';')
+end
+textOwner.observe=function(o)
+ if not valid(o) or not o:GetFullName():find('PBZCommonLocRichText',1,true) then return end
+ local key=tostring(o:GetAddress())
+ if not widgetQueued[key] and #widgetQueue<128 then widgetQueued[key]=true;widgetQueue[#widgetQueue+1]={object=o,key=key} end
+end
+local function listenText()
+ textRouter.owner=textOwner
+ if textRouter.hooked then return end
+ local path='/Script/UMG.RichTextBlock:SetText'
+ if not valid(StaticFindObject(path)) then return end
+ RegisterHook(path,function() end,function(context)
+  local owner=textRouter.owner
+  if owner then pcall(function() owner.observe(context:get()) end) end
+ end)
+ textRouter.hooked=true
+end
+local function scanFrame()
+ if not scan then return end
+ local class=classes[scan.class]
+ if not scan.objects then scan.objects=FindAllOf(class) or {} end
+ local stop=math.min(#scan.objects,scan.index+31)
+ for i=scan.index,stop do
+  local o=scan.objects[i]
+  if valid(o) then
+   if class=='PBZCommonLocRichText' then patchText({o})
+   elseif kind(o:GetFullName()) then
+    if class=='NiagaraDataInterfaceColorCurve' then patchCurves({o})
+    else
+     patchRendererColors({o},class)
+     if class=='NiagaraSpriteRendererProperties' then patchDodgeLayers({o}) end
+    end
+   end
+  end
+ end
+ scan.index=stop+1
+ if scan.index>#scan.objects then
+  scan.class=scan.class+1;scan.index=1;scan.objects=nil
+  if scan.class>#classes then scan=nil end
+ end
+end
+function M.tick(c,now)
+ if not c.WarningColorsEnabled then
+  if textRouter.owner==textOwner then textRouter.owner=nil end
+  if next(saved) or next(texts) or next(rendererColors) or next(gpuGlows) or scan or signature~=nil then M.clear() end
+  return
+ end
+ if failed then return end
+ debugLog=c.Debug==true
+ local ok,err=pcall(function()
+  listenText()
+  if now<last or now-last>=.5 then
+   last=now
+   local current=assetSignature()
+   if current~=signature then signature=current;needsScan=true;signatureChangedAt=now end
+  end
+  if not scan and needsScan and now-signatureChangedAt>=.1 then beginScan() end
+  scanFrame()
+  -- New/updated tutorial text is handled by SetText events, not polling widgets.
+  for _=1,8 do
+   local item=table.remove(widgetQueue,1)
+   if not item then break end
+   widgetQueued[item.key]=nil
+   if valid(item.object) then patchText({item.object}) end
+  end
  end)
  if not ok then
   M.clear();failed=true

@@ -38,15 +38,27 @@ local smokeTint={R=.8,G=.8,B=.8,A=.372}
 smoke.MaterialParameters.VectorParameters=array({{MaterialParameterName=name('Main_Color_1'),Value=smokeTint}})
 package.preload.UEHelpers=function() return {GetPlayerController=function() return {} end} end
 local nextId=200
-function StaticFindObject()
+local textHook
+local hookRegistrations=0
+local spriteObjects={gpu,cpu,smoke}
+local assetVersion=0
+local scans=0
+function RegisterHook(_,pre,post) hookRegistrations=hookRegistrations+1;textHook=post;return 1,2 end
+function StaticFindObject(path)
+ if path=='/Script/UMG.RichTextBlock:SetText' then return {IsValid=function() return true end} end
+ if path:find('/PBZVFXPack/',1,true) then
+  if assetVersion>0 then return {IsValid=function() return true end,GetAddress=function() return assetVersion end} end
+  return nil
+ end
  return {CreateDynamicMaterialInstance=function()
   nextId=nextId+1;local id=nextId
   return {params={},scalars={},SetScalarParameterValue=function(self,key,v) self.scalars[key:ToString()]=v end,IsValid=function() return true end,GetAddress=function() return id end,SetVectorParameterValue=function(self,key,v) self.params[key:ToString()]=v end}
  end}
 end
-function FindAllOf(c) if c=='NiagaraSpriteRendererProperties' then return {gpu,cpu,smoke} elseif c=='NiagaraMeshRendererProperties' then return {renderer} elseif c=='NiagaraDataInterfaceColorCurve' then return curves elseif c=='PBZCommonLocRichText' then return {widget} end end
+function FindAllOf(c) scans=scans+1;if c=='NiagaraSpriteRendererProperties' then return spriteObjects elseif c=='NiagaraMeshRendererProperties' then return {renderer} elseif c=='NiagaraDataInterfaceColorCurve' then return curves elseif c=='PBZCommonLocRichText' then return {widget} end end
 local m=assert(loadfile(module_path))()
-m.tick({WarningColorsEnabled=true},0)
+local function settle(t) for i=0,14 do local before=scans;m.tick({WarningColorsEnabled=true},t+i*.02);assert(scans-before<=1,'at most one class discovery per frame') end end
+settle(0)
 assert(r[1]==1 and r[2]==.78 and r[3]==.025 and r[4]==.7)
 assert(b[1]==2 and b[2]==.05 and b[3]==.02 and b[4]==.6)
 assert(gpu.Material~=parent and math.abs(gpu.Material.params.Main_Color_1.R-1.17)<1e-8 and gpu.Material.params.Main_Color_1.A==.375,'GPU gold uses original texture parent with reduced opacity')
@@ -61,7 +73,18 @@ assert(r[5]==1 and r[6]==1 and r[7]==1 and r[8]==.8,'white flash and alpha prese
 assert(other[1]==.1 and other[2]==.3,'unrelated systems untouched')
 assert(current:ToString():find('<Tutorial_Body_Red>红光技能</>',1,true))
 assert(current:ToString():find('<Tutorial_Body_Yellow>黄光技能</>',1,true))
-m.tick({WarningColorsEnabled=true},2)
+local baselineScans,baselineMaterials=scans,nextId
+for i=1,600 do m.tick({WarningColorsEnabled=true},.2+i/60) end
+assert(scans==baselineScans and nextId==baselineMaterials,'steady state performs zero global searches and creates zero extra materials')
+current=FText(native)
+textHook({get=function() return widget end})
+m.tick({WarningColorsEnabled=true},10.21)
+assert(current:ToString():find('<Tutorial_Body_Yellow>黄光技能</>',1,true),'late tutorial SetText event patched')
+assert(scans==baselineScans,'tutorial events do not trigger a global search')
+assetVersion=1
+settle(11)
+assert(scans==baselineScans+5,'newly loaded target assets trigger one discovery pass')
+
 m.clear()
 assert(smoke.Material==smokeParent and smokeTint.R==.8 and smokeTint.A==.372,'smoke material/tint/alpha restored')
 assert(gpu.Material==parent and gpu.ColorBinding.DataSetName:ToString()=='Color','GPU material and colour binding restored')
@@ -69,12 +92,33 @@ assert(renderer.ColorBinding.DataSetName:ToString()=='Color' and renderer.ColorB
 assert(edge.G==0 and edge.B==0 and body.R==.5 and body.G==.01 and body.A==.37,'exact renderer parameter restoration')
 assert(r[2]==.02 and r[3]==.01 and b[1]==.1 and b[3]==2,'exact curve restoration')
 assert(current:ToString()==native,'original rich text restored')
-m.tick({WarningColorsEnabled=true},3)
+settle(12)
 current=FText('another tutorial')
-m.tick({WarningColorsEnabled=false},4)
+m.tick({WarningColorsEnabled=false},13)
 assert(current:ToString()=='another tutorial','reused widget is not overwritten on disable')
-m.tick({WarningColorsEnabled=true},5)
+settle(14)
 m.clear();m.clear()
 assert(b[1]==.1,'repeated restore is idempotent')
+local m2=assert(loadfile(module_path))()
+for i=0,14 do m2.tick({WarningColorsEnabled=true},16+i*.02) end
+assert(hookRegistrations==1,'reload does not register duplicate text listeners')
+current=FText(native)
+textHook({get=function() return widget end})
+m2.tick({WarningColorsEnabled=true},16.3)
+assert(current:ToString():find('<Tutorial_Body_Yellow>黄光技能</>',1,true),'existing listener routes to newly loaded module')
+local unrelatedReads=0
+for i=1,200 do
+ local id=1000+i
+ spriteObjects[#spriteObjects+1]={IsValid=function() return true end,GetAddress=function() return id end,GetFullName=function() unrelatedReads=unrelatedReads+1;return 'NiagaraSpriteRendererProperties Unrelated'..id end}
+end
+assetVersion=2
+for i=1,60 do
+ local beforeScans,beforeReads=scans,unrelatedReads
+ m2.tick({WarningColorsEnabled=true},16.3+i*.02)
+ assert(scans-beforeScans<=1 and unrelatedReads-beforeReads<=32,'large discoveries respect per-frame class/object budget')
+end
+assert(unrelatedReads==200,'large discovery visits each unrelated object once')
+m2.clear()
+
 ''')
-print('PASS: exact alert scope, requested hues, glow parent/opacity and rollback, CPU outer glow coverage, HDR gold edge, layered body, exact renderer restoration, alpha/white flashes, rich-text styles, repeat apply, full restore, reused widget, repeated disable.')
+print('PASS: zero steady-state global scans/material allocations, incremental discovery, late text events, asset refresh, exact alert scope, requested hues, glow parent/opacity and rollback, CPU outer glow coverage, HDR gold edge, layered body, exact renderer restoration, alpha/white flashes, rich-text styles, repeat apply, full restore, reused widget, repeated disable.')
