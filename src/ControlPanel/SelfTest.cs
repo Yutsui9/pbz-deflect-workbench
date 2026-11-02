@@ -19,18 +19,20 @@ namespace PBZGuardPanel {
                 bool rejected=false;c.GuardKey="H";try{c.Validate();}catch(InvalidDataException){rejected=true;}Check(rejected,"Reject duplicate bindings");c.GuardKey="G";
                 rejected=false;c.BladeFlashMinInterval=.20m;try{c.Validate();}catch(InvalidDataException){rejected=true;}Check(rejected,"Reject continuous-light settings");c.BladeFlashMinInterval=.32m;
                 File.WriteAllText(store.ConfigPath,c.Serialize(),ConfigStore.Utf8);
-                string first=store.Apply(c);Check(store.Load().Enabled,"Apply persists enabled");
+                string first=store.Apply(c);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Apply preserves colour-only mode");
                 Check(File.ReadAllText(Path.Combine(store.ScriptsPath,"control.request")).Contains(first+"\nAPPLY"),"Apply queues correct request");
                 string second=store.RestoreVanilla();var off=store.Load();
-                Check(!off.Enabled && off.WarningColorsEnabled && off.ParryKey=="H" && off.ParryCostPercent==.075m,"Vanilla restore preserves user tuning");
+                Check(!off.Enabled && !off.WarningColorsEnabled && off.ParryKey=="H" && off.ParryCostPercent==.075m,"Vanilla restore preserves user tuning");
                 Check(second!=first && File.ReadAllText(Path.Combine(store.ScriptsPath,"control.request")).Contains("RESTORE"),"Restore queues fresh request");
                 string before=File.ReadAllText(store.ConfigPath);c.ParryKey="F7";rejected=false;try{store.Apply(c);}catch(InvalidDataException){rejected=true;}
                 Check(rejected && File.ReadAllText(store.ConfigPath)==before,"Invalid input cannot partially save");
                 string[] backups=Directory.GetFiles(store.BackupPath,"*.lua");Check(backups.Length==2,"Every valid mutation creates backup");
-                string selected=null;foreach(string b in backups)if(GuardConfig.Parse(File.ReadAllText(b)).Enabled)selected=b;
-                Check(selected!=null,"Enabled backup available");store.RestoreBackup(selected);Check(store.Load().Enabled,"Restore config backup including state");
+                string selected=null;foreach(string b in backups)if(GuardConfig.Parse(File.ReadAllText(b)).WarningColorsEnabled)selected=b;
+                Check(selected!=null,"Enabled backup available");store.RestoreBackup(selected);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Restore colour-only backup including state");
                 File.WriteAllText(Path.Combine(store.ScriptsPath,"control.status"),"enabled=1\nrequest=test\nresult=ok\n");Check(store.ReadStatus()["enabled"]=="1","Read runtime acknowledgement");
                 Check(GuardConfig.Parse("return {\n GuardKey = \"G\",\n ParryKey = \"RightMouseButton\",\n}\n").Enabled,"Legacy configs default to enabled");
+                foreach(bool combat in new[]{false,true})foreach(bool colour in new[]{false,true}){var mode=new GuardConfig();mode.Enabled=combat;mode.WarningColorsEnabled=colour;store.Apply(mode);var saved=store.Load();Check(saved.Enabled==combat && saved.WarningColorsEnabled==colour,"Four independent persisted modes");}
+                Check(!GuardConfig.Parse("return {\n Enabled = false,\n WarningColorsEnabled = true,\n}").WarningColorsEnabled,"Legacy disabled colour preference stays off");
                 File.WriteAllText(report,"PASS: schema round-trip, binding validation, flash gap validation, atomic apply/restore, preserved tuning, request protocol, backup recovery, runtime acknowledgement, legacy config.\r\nTest data: "+area,Encoding.UTF8);return 0;
             }catch(Exception e){Directory.CreateDirectory(Path.GetDirectoryName(report));File.WriteAllText(report,"FAIL: "+e,Encoding.UTF8);return 1;}
         }

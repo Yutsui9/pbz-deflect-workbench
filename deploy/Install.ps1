@@ -88,4 +88,4 @@ foreach($rel in $relative) {
 }
 Write-Output ('安装完成。存档备份/回滚记录：'+$work)
 Write-Output ('打开：'+(Join-Path $game '卸势调校台.exe'))
-Write-Output '再从 Steam 启动游戏；已存在的配置会保留，点击“启用并应用”开启。'
+Write-Output '再从 Steam 启动游戏；已存在的配置会保留，选择独立功能开关并点击“应用设置”。'

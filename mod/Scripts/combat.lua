@@ -16,6 +16,8 @@ local animationSnapshots={}
 local acceptedPresses=0
 local tapFX=assert(loadfile(dir.."parry_fx.lua"))()
 local fxErrorShown=false
+local warningFX=assert(loadfile(dir.."warning_colors.lua"))()
+local warningEnabled=false
 local function keyCode(name)
     local aliases={RightMouseButton="RIGHT_MOUSE_BUTTON",LeftMouseButton="LEFT_MOUSE_BUTTON",MiddleMouseButton="MIDDLE_MOUSE_BUTTON",XButton1="XBUTTON_ONE",XButton2="XBUTTON_TWO",LeftShift="LEFT_SHIFT",LeftControl="LEFT_CONTROL",SpaceBar="SPACE"}
     return Key[aliases[name] or name:upper()]
@@ -50,6 +52,7 @@ local function cfg()
     local c = assert(loadfile(dir .. "config.lua"))()
     if c.Enabled==nil then c.Enabled=true end
     assert(type(c.Enabled)=="boolean","Enabled must be true/false")
+    if c.FeatureSwitchVersion==nil and not c.Enabled then c.WarningColorsEnabled=false end
     assert(type(c.GuardKey)=="string" and type(c.ParryKey)=="string" and c.GuardKey~=c.ParryKey, "Use two distinct keys")
     assert(c.WindowSeconds>=0.05 and c.WindowSeconds<=0.6, "WindowSeconds must be 0.05..0.6")
     assert(c.SpamRecoverySeconds>=0.1 and c.SpamRecoverySeconds<=2, "Invalid recovery")
@@ -253,13 +256,14 @@ function M.status()
         end
     end
 end
-function M.disable() enabled=false; tapFX.clear(); restore(); log("Vanilla restored; panel enables, F5 reloads saved mode") end
+function M.disable() enabled=false; warningEnabled=false; warningFX.clear(); tapFX.clear(); restore(); log("Vanilla restored; panel enables, F5 reloads saved mode") end
 function M.reload()
     local nextFX=assert(loadfile(dir.."parry_fx.lua"))()
-    local new=cfg(); assert(keyCode(new.ParryKey), "Unsupported ParryKey: "..new.ParryKey); C=new; enabled=true; lastMaintenance=-10; errorShown=false; fxErrorShown=false
+    local new=cfg(); assert(keyCode(new.ParryKey), "Unsupported ParryKey: "..new.ParryKey); C=new; enabled=C.Enabled; warningEnabled=C.WarningColorsEnabled==true; lastMaintenance=-10; errorShown=false; fxErrorShown=false
     if not C.ParryTapFX then tapFX.clear() end
     tapFX.clear(); tapFX=nextFX
-    if not C.Enabled then M.disable();log("Config loaded: vanilla mode");return end
+    if not warningEnabled then warningFX.clear() end
+    if not enabled then restore();log("Config loaded: original combat, warning colours="..tostring(warningEnabled));return end
     bindParry()
     log("Config loaded: "..C.WindowSeconds.." seconds")
 end
@@ -267,7 +271,7 @@ function M.stop() M.disable(); stopped=true end
 function M.start()
     ExecuteInGameThread(function()
     M.reload()
-    assert(loadfile(dir.."panel_bridge.lua"))().start({apply=M.reload,restore=M.disable,enabled=function() return enabled end,stopped=function() return stopped end})
+    assert(loadfile(dir.."panel_bridge.lua"))().start({apply=M.reload,restore=M.disable,enabled=function() return enabled end,warningEnabled=function() return warningEnabled end,stopped=function() return stopped end})
     LoopInGameThreadWithDelay(0,function()
         if stopped then return true end
 
@@ -277,6 +281,10 @@ function M.start()
             if pc:WasInputKeyJustPressed({KeyName=FName("F5")}) then M.reload() end
             if pc:WasInputKeyJustPressed({KeyName=FName("F6")}) then M.status() end
             if pc:WasInputKeyJustPressed({KeyName=FName("F7")}) then M.disable() end
+            if warningEnabled then
+                local warningOK,warningError=pcall(warningFX.tick,C,H.GetKismetSystemLibrary():GetGameTimeInSeconds(pc))
+                if not warningOK then warningEnabled=false;pcall(warningFX.clear);log("Warning colours disabled: "..tostring(warningError)) end
+            end
             if not enabled then return end
             if pc:WasInputKeyJustPressed({KeyName=FName(C.ParryKey)}) then triggerParry(pc) end
             local now=H.GetKismetSystemLibrary():GetGameTimeInSeconds(pc)
@@ -312,7 +320,7 @@ function M.start()
             end
         end)
         if not ok and not errorShown then
-            errorShown=true; enabled=false; pcall(restore)
+            errorShown=true; enabled=false; pcall(tapFX.clear); pcall(restore)
             log("ERROR; mod disabled: "..tostring(err))
         end
         return false

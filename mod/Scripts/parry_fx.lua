@@ -5,7 +5,6 @@ local moduleDir=assert(modulePath:match("^(.*[/\\])"))
 local rewards=assert(loadfile(moduleDir.."success_rewards.lua"))()
 local tapMotion=assert(loadfile(moduleDir.."tap_motion.lua"))()
 local moduleConfig=assert(loadfile(moduleDir.."config.lua"))()
-local warningFX=assert(loadfile(moduleDir.."warning_colors.lua"))()
 local live={}
 local raiseJobs={}
 local function valid(o) return o and o:IsValid() end
@@ -140,7 +139,6 @@ function M.play(avatar,c,now)
     return true
 end
 function M.tick(now)
-    warningFX.tick(moduleConfig,now)
     local motionOK,motionError=pcall(tapMotion.tick,now)
     if not motionOK then tapMotion.clear();print("[YanyunGuard] Tap shake skipped: "..tostring(motionError).."\n") end
     local rewardOK,rewardError=pcall(rewards.tick,now,moduleConfig)
@@ -169,7 +167,6 @@ function M.tick(now)
     end
 end
 function M.clear()
-    warningFX.clear()
     tapMotion.clear()
     rewards.clear()
     for _,job in pairs(raiseJobs) do

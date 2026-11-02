@@ -23,6 +23,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_tap_motion.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_feature_isolation.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_warning_colors.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and verify panel and deployment

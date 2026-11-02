@@ -8,7 +8,7 @@ function B.start(api)
     local function status()
         local f=io.open(dir.."control.status","w")
         if not f then return end
-        f:write("version=0.1.8\nrequest="..handled.."\nenabled="..(api.enabled() and "1" or "0").."\nresult="..result.."\nmessage="..message:gsub("[\r\n]"," ").."\n")
+        f:write("version=0.1.8\nrequest="..handled.."\nenabled="..(api.enabled() and "1" or "0").."\nwarning_enabled="..(api.warningEnabled() and "1" or "0").."\nresult="..result.."\nmessage="..message:gsub("[\r\n]"," ").."\n")
         f:close()
     end
     LoopInGameThreadWithDelay(250,function()

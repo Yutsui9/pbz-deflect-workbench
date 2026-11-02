@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -16,6 +16,7 @@ namespace PBZGuardPanel {
         public bool SuccessChainEnabled=true;
         public bool ParryTapShake=true;
         public bool WarningColorsEnabled=false;
+        public decimal FeatureSwitchVersion=1;
         public decimal SuccessChainTimeout=6m, SuccessChainMaxStacks=3m, SuccessChainRefundStep=.02m, SuccessChainPoiseStep=.02m;
         public decimal ParryTapSoundVolume=.24m, GuardDrainMultiplier=1.15m, GuardDrainStartDelay=.20m;
         public decimal NormalUltimateMultiplier=.80m, PerfectUltimateMultiplier=1.10m;
@@ -65,6 +66,7 @@ namespace PBZGuardPanel {
                     for(int i=0;i<a.Length;i++)a[i]=decimal.Parse(parts[i].Trim(),Inv);f.SetValue(c,a);
                 }
             }
+            if(Value(source,"FeatureSwitchVersion")==null && !c.Enabled)c.WarningColorsEnabled=false;
             c.Validate();return c;
         }
         static string N(decimal v) {return v.ToString("0.######",Inv);}
@@ -96,11 +98,11 @@ namespace PBZGuardPanel {
             finally {if(File.Exists(temp))File.Delete(temp);}
         }
         public string Apply(GuardConfig c) {
-            c.Enabled=true;c.Validate();return Save(c,"APPLY");
+            c.Validate();return Save(c,"APPLY");
         }
         public string RestoreVanilla() {
             // Preserve the user's last saved tuning while persisting the disabled state.
-            var c=Load();c.Enabled=false;return Save(c,"RESTORE");
+            var c=Load();c.Enabled=false;c.WarningColorsEnabled=false;return Save(c,"RESTORE");
         }
         string Save(GuardConfig c,string action) {
             Directory.CreateDirectory(BackupPath);
@@ -120,7 +122,7 @@ namespace PBZGuardPanel {
             string full=Path.GetFullPath(path);
             if(!full.StartsWith(BackupPath+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("请选择本面板生成的备份。");
             var c=GuardConfig.Parse(File.ReadAllText(full,Encoding.UTF8));
-            return c.Enabled?Apply(c):Save(c,"RESTORE");
+            return Apply(c);
         }
     }
 }

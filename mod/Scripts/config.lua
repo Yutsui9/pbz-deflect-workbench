@@ -1,5 +1,6 @@
 -- Managed by the PBZ guard configuration panel. F5 reloads this file.
 return {
+    FeatureSwitchVersion = 1,
     Enabled = true,
     StrongParryAnimation = true,
     ParryTapFX = true,
