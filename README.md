@@ -1,4 +1,4 @@
-# 影之刃零 · 卸势调校台
+﻿# 影之刃零 · 卸势调校台
 
 为《影之刃零》提供独立键鼠招架、连续卸势奖励和可视化调参的 Windows 本地工具。MIT 开源，非官方项目。
 
@@ -48,7 +48,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\Install.ps1 -GameRo
 
 v0.3.0 起，本安装包只提供卸势调校，不包含或加载换色脚本。面板的应用、停用、还原操作仅影响卸势。
 
-红／金黄预警请另装 `pbz-warning-colors-v1.0.0-beta1-no-ue4ss.zip`。它是独立资源包，无需 UE4SS、面板或 Lua；装卸后重启游戏。两个安装包可以同时使用。旧配置中的 WarningColorsEnabled 字段仅为兼容备份而保留，已不影响运行。
+红／金黄预警请另装 `pbz-warning-colors-v1.0.0-beta2-no-ue4ss.zip`。它是独立资源包，无需 UE4SS、面板或 Lua；装卸后重启游戏。两个安装包可以同时使用。旧配置中的 WarningColorsEnabled 字段仅为兼容备份而保留，已不影响运行。
 
 从旧版升级时，请先安装本包、退出游戏，再安装独立换色包。旧版的实时换色开关已移除。新版换色包已完成资源校验，视觉效果仍待实战确认。
 
