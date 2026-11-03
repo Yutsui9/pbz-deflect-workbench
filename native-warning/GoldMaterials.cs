@@ -27,6 +27,7 @@ public static class GoldMaterials {
  public static void Verify(string source,string destination,string mapping){
   var a=new UAsset(source,EngineVersion.VER_UE5_6,new Usmap(mapping),CustomSerializationFlags.None);
   var b=new UAsset(destination,EngineVersion.VER_UE5_6,new Usmap(mapping),CustomSerializationFlags.None);
+  if(b.FolderName.ToString()!=a.FolderName.ToString()+"_PBZGold")throw new Exception("Cloned material package identity collides with original: "+b.FolderName);
   if(a.Exports.Count!=b.Exports.Count||a.Imports.Count!=b.Imports.Count)throw new Exception("Material structure changed");
   for(int i=0;i<a.Imports.Count;i++)if(a.SerializeJsonObject(a.Imports[i],false)!=b.SerializeJsonObject(b.Imports[i],false))throw new Exception("Material parent/dependency changed");
   for(int i=0;i<a.Exports.Count;i++){
@@ -59,6 +60,7 @@ public static class GoldMaterials {
    Set(m,e,"Main_Color_0",1f,.65f,.03f);Set(m,e,"Main_Color_1",smoke?.45f:1.17f,smoke?.28f:.76f,smoke?.07f:.035f);Set(m,e,"Main_Color_2",.234f,.1183f,.008f);Set(m,e,"Color",1.17f,.76f,.035f);
    // Rename only this copy; original shared material packages stay untouched.
    for(int i=0;i<m.GetNameMapIndexList().Count;i++){string n=m.GetNameReference(i).ToString();if(n==name||n==path)m.SetNameReference(i,new FString(n+"_PBZGold"));}
+   m.FolderName=new FString(path+"_PBZGold");
    m.Write(dst);
    Verify(src,dst,mapping);
    var check=new UAsset(dst,EngineVersion.VER_UE5_6,new Usmap(mapping),CustomSerializationFlags.None);

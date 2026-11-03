@@ -20,7 +20,7 @@ Get-ChildItem $target -File | ForEach-Object {$hashes[$_.Name]=(Get-FileHash $_.
 $hashes | ConvertTo-Json | Set-Content (Join-Path $PSScriptRoot 'package/SHA256.json') -Encoding UTF8
 $artifacts=Join-Path $PSScriptRoot 'artifacts'
 New-Item -ItemType Directory $artifacts -Force | Out-Null
-$zip=Join-Path $artifacts 'pbz-warning-colors-v1.0.0-beta2-no-ue4ss.zip'
+$zip=Join-Path $artifacts 'pbz-warning-colors-v1.0.0-beta3-candidate-no-ue4ss.zip'
 Compress-Archive (Join-Path $PSScriptRoot 'package/*') $zip -Force
 ((Get-FileHash $zip).Hash.ToLowerInvariant()+'  '+[IO.Path]::GetFileName($zip)) | Set-Content ($zip+'.sha256') -Encoding ASCII
 Write-Output $zip
