@@ -11,7 +11,7 @@ namespace PBZGuardPanel {
                 var store=new ConfigStore(area);Directory.CreateDirectory(store.ScriptsPath);
                 var c=new GuardConfig();c.ParryKey="H";c.ParryCostPercent=.075m;c.Enabled=false;c.WarningColorsEnabled=true;
                 string text=c.Serialize();var parsed=GuardConfig.Parse(text);
-                Check(parsed.WarningColorsEnabled,"Warning colours opt-in round-trip");
+                Check(parsed.WarningColorsEnabled,"Legacy field round-trip for old backups");
                 Check(parsed.Serialize()==text,"Full schema round-trip, including disabled state");
                 Check(parsed.SuccessChainEnabled && parsed.SuccessChainMaxStacks==3 && parsed.SuccessChainRefundStep==.02m,"Chain defaults round-trip");
                 bool chainRejected=false;c.SuccessChainMaxStacks=2.5m;try{c.Validate();}catch(InvalidDataException){chainRejected=true;}Check(chainRejected,"Reject fractional chain stacks");c.SuccessChainMaxStacks=3;
@@ -19,7 +19,7 @@ namespace PBZGuardPanel {
                 bool rejected=false;c.GuardKey="H";try{c.Validate();}catch(InvalidDataException){rejected=true;}Check(rejected,"Reject duplicate bindings");c.GuardKey="G";
                 rejected=false;c.BladeFlashMinInterval=.20m;try{c.Validate();}catch(InvalidDataException){rejected=true;}Check(rejected,"Reject continuous-light settings");c.BladeFlashMinInterval=.32m;
                 File.WriteAllText(store.ConfigPath,c.Serialize(),ConfigStore.Utf8);
-                string first=store.Apply(c);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Apply preserves colour-only mode");
+                string first=store.Apply(c);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Apply preserves disabled combat and legacy fields");
                 Check(File.ReadAllText(Path.Combine(store.ScriptsPath,"control.request")).Contains(first+"\nAPPLY"),"Apply queues correct request");
                 string second=store.RestoreVanilla();var off=store.Load();
                 Check(!off.Enabled && !off.WarningColorsEnabled && off.ParryKey=="H" && off.ParryCostPercent==.075m,"Vanilla restore preserves user tuning");
@@ -28,10 +28,10 @@ namespace PBZGuardPanel {
                 Check(rejected && File.ReadAllText(store.ConfigPath)==before,"Invalid input cannot partially save");
                 string[] backups=Directory.GetFiles(store.BackupPath,"*.lua");Check(backups.Length==2,"Every valid mutation creates backup");
                 string selected=null;foreach(string b in backups)if(GuardConfig.Parse(File.ReadAllText(b)).WarningColorsEnabled)selected=b;
-                Check(selected!=null,"Enabled backup available");store.RestoreBackup(selected);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Restore colour-only backup including state");
+                Check(selected!=null,"Enabled backup available");store.RestoreBackup(selected);Check(!store.Load().Enabled && store.Load().WarningColorsEnabled,"Restore legacy backup including combat state");
                 File.WriteAllText(Path.Combine(store.ScriptsPath,"control.status"),"enabled=1\nrequest=test\nresult=ok\n");Check(store.ReadStatus()["enabled"]=="1","Read runtime acknowledgement");
                 Check(GuardConfig.Parse("return {\n GuardKey = \"G\",\n ParryKey = \"RightMouseButton\",\n}\n").Enabled,"Legacy configs default to enabled");
-                foreach(bool combat in new[]{false,true})foreach(bool colour in new[]{false,true}){var mode=new GuardConfig();mode.Enabled=combat;mode.WarningColorsEnabled=colour;store.Apply(mode);var saved=store.Load();Check(saved.Enabled==combat && saved.WarningColorsEnabled==colour,"Four independent persisted modes");}
+                foreach(bool combat in new[]{false,true})foreach(bool colour in new[]{false,true}){var mode=new GuardConfig();mode.Enabled=combat;mode.WarningColorsEnabled=colour;store.Apply(mode);var saved=store.Load();Check(saved.Enabled==combat && saved.WarningColorsEnabled==colour,"Legacy fields remain readable; combat choice preserved");}
                 Check(!GuardConfig.Parse("return {\n Enabled = false,\n WarningColorsEnabled = true,\n}").WarningColorsEnabled,"Legacy disabled colour preference stays off");
                 File.WriteAllText(report,"PASS: schema round-trip, binding validation, flash gap validation, atomic apply/restore, preserved tuning, request protocol, backup recovery, runtime acknowledgement, legacy config.\r\nTest data: "+area,Encoding.UTF8);return 0;
             }catch(Exception e){Directory.CreateDirectory(Path.GetDirectoryName(report));File.WriteAllText(report,"FAIL: "+e,Encoding.UTF8);return 1;}

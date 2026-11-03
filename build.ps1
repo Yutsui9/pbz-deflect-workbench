@@ -12,7 +12,9 @@ $exe=Join-Path $out '卸势调校台.exe'
 if ($LASTEXITCODE -ne 0) {throw 'Compilation failed. Close the panel and retry.'}
 $scripts=Join-Path $out 'platform\steam\ue4ss\Mods\PBZYanyunGuard\Scripts'
 New-Item -ItemType Directory -Path $scripts -Force | Out-Null
-Copy-Item (Join-Path $root 'mod\Scripts\*.lua') $scripts -Force
+Get-ChildItem (Join-Path $root 'mod\Scripts\*.lua') | Where-Object Name -ne 'warning_colors.lua' | Copy-Item -Destination $scripts -Force
+$legacyColour=Join-Path $scripts 'warning_colors.lua'
+if(Test-Path -LiteralPath $legacyColour){Remove-Item -LiteralPath $legacyColour}
 Copy-Item (Join-Path $root 'mod\enabled.txt') (Split-Path $scripts) -Force
 $help=Join-Path $out '_ModWork\YanyunGuard'
 New-Item -ItemType Directory -Path $help -Force | Out-Null

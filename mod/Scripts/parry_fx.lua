@@ -1,5 +1,7 @@
 -- Brief local lighting isolated to the blade, plus a quiet native tap sound.
 local M={}
+local cacheDir=debug.getinfo(1,"S").source:gsub("^@",""):match("^(.*[/\\])")
+local cache=assert(loadfile(cacheDir.."object_cache.lua"))()
 local modulePath=debug.getinfo(1,"S").source:gsub("^@","")
 local moduleDir=assert(modulePath:match("^(.*[/\\])"))
 local rewards=assert(loadfile(moduleDir.."success_rewards.lua"))()
@@ -9,7 +11,7 @@ local live={}
 local raiseJobs={}
 local function valid(o) return o and o:IsValid() end
 local function accelerateRaise(job)
-    for _,ability in ipairs(FindAllOf("BP_StanceAction_Base_Player_C") or {}) do
+    for _,ability in ipairs(cache.get("BP_StanceAction_Base_Player_C")) do
         if not ability:GetFullName():find("Default__",1,true) then
             local owner=ability:GetAvatarActorFromActorInfo()
             if valid(owner) and owner:GetAddress()==job.avatar:GetAddress() then
@@ -139,6 +141,7 @@ function M.play(avatar,c,now)
     return true
 end
 function M.tick(now)
+    cache.tick(now)
     local motionOK,motionError=pcall(tapMotion.tick,now)
     if not motionOK then tapMotion.clear();print("[YanyunGuard] Tap shake skipped: "..tostring(motionError).."\n") end
     local rewardOK,rewardError=pcall(rewards.tick,now,moduleConfig)

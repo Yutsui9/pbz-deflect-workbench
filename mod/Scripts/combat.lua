@@ -2,6 +2,10 @@ local M = {}
 local H = require("UEHelpers")
 local source = debug.getinfo(1, "S").source:gsub("^@", "")
 local dir = source:match("^(.*[/\\])") or ""
+local cache=assert(loadfile(dir.."object_cache.lua"))()
+local input=assert(loadfile(dir.."input_keys.lua"))()
+local parryKey,guardKey
+local hotkeys
 local C, enabled, stopped = nil, true, false
 local nativeFrames, nativeRate = 8, 30
 local snapshots, mappingSnapshots, actors = {}, {}, {}
@@ -16,15 +20,6 @@ local animationSnapshots={}
 local acceptedPresses=0
 local tapFX=assert(loadfile(dir.."parry_fx.lua"))()
 local fxErrorShown=false
-local warningFX=assert(loadfile(dir.."warning_colors.lua"))()
-local warningEnabled=false
-local function keyCode(name)
-    local aliases={RightMouseButton="RIGHT_MOUSE_BUTTON",LeftMouseButton="LEFT_MOUSE_BUTTON",MiddleMouseButton="MIDDLE_MOUSE_BUTTON",XButton1="XBUTTON_ONE",XButton2="XBUTTON_TWO",LeftShift="LEFT_SHIFT",LeftControl="LEFT_CONTROL",SpaceBar="SPACE"}
-    return Key[aliases[name] or name:upper()]
-end
-local function bindParry()
-    assert(keyCode(C.ParryKey), "Unsupported ParryKey: "..C.ParryKey)
-end
 local function triggerParry(pc)
     if stopped or not enabled or not valid(pc.Pawn) then return end
     if H.GetGameplayStatics():IsGamePaused(pc) then return end
@@ -111,7 +106,7 @@ payParryCost=function(a,s)
 end
 updateParryAnimation=function(passive,active)
     local avatar=passive:GetAvatarActorFromActorInfo()
-    for _,a in ipairs(FindAllOf("BP_StanceAction_Base_Player_C") or {}) do
+    for _,a in ipairs(cache.get("BP_StanceAction_Base_Player_C")) do
         if not a:GetFullName():find("Default__",1,true) then
             local owner=a:GetAvatarActorFromActorInfo()
             if valid(owner) and owner:GetAddress()==avatar:GetAddress() then
@@ -121,7 +116,8 @@ updateParryAnimation=function(passive,active)
                     log("Native strong-deflect animation original="..tostring(a.UseStrongDeflectAnim))
                 end
                 local original=animationSnapshots[name].original
-                a.UseStrongDeflectAnim=(active and C.StrongParryAnimation) or original
+                local desired=(active and C.StrongParryAnimation) or original
+                if a.UseStrongDeflectAnim~=desired then a.UseStrongDeflectAnim=desired end
             end
         end
     end
@@ -256,40 +252,44 @@ function M.status()
         end
     end
 end
-function M.disable() enabled=false; warningEnabled=false; warningFX.clear(); tapFX.clear(); restore(); log("Vanilla restored; panel enables, F5 reloads saved mode") end
+function M.disable() enabled=false; tapFX.clear(); restore(); log("Vanilla restored; panel enables, F5 reloads saved mode") end
 function M.reload()
     local nextFX=assert(loadfile(dir.."parry_fx.lua"))()
-    local new=cfg(); assert(keyCode(new.ParryKey), "Unsupported ParryKey: "..new.ParryKey); C=new; enabled=C.Enabled; warningEnabled=C.WarningColorsEnabled==true; lastMaintenance=-10; errorShown=false; fxErrorShown=false
+    local new=cfg()
+    local nextParry,nextGuard=input.make(new.ParryKey),input.make(new.GuardKey)
+    parryKey,guardKey=nextParry,nextGuard
+    cache.clear()
+    C=new; enabled=C.Enabled; lastMaintenance=-10; errorShown=false; fxErrorShown=false
     if not C.ParryTapFX then tapFX.clear() end
     tapFX.clear(); tapFX=nextFX
-    if not warningEnabled then warningFX.clear() end
-    if not enabled then restore();log("Config loaded: original combat, warning colours="..tostring(warningEnabled));return end
-    bindParry()
+    if not enabled then restore();log("Config loaded: original combat; colours are a separate resource mod");return end
+    log("Polling keys: hold "..C.GuardKey..", tap "..C.ParryKey)
     log("Config loaded: "..C.WindowSeconds.." seconds")
 end
 function M.stop() M.disable(); stopped=true end
 function M.start()
     ExecuteInGameThread(function()
+    hotkeys={F5={KeyName=FName("F5")},F6={KeyName=FName("F6")},F7={KeyName=FName("F7")}}
     M.reload()
-    assert(loadfile(dir.."panel_bridge.lua"))().start({apply=M.reload,restore=M.disable,enabled=function() return enabled end,warningEnabled=function() return warningEnabled end,stopped=function() return stopped end})
+    assert(loadfile(dir.."panel_bridge.lua"))().start({apply=M.reload,restore=M.disable,enabled=function() return enabled end,warningEnabled=function() return false end,stopped=function() return stopped end})
     LoopInGameThreadWithDelay(0,function()
         if stopped then return true end
 
         local ok,err=pcall(function()
             local pc=H.GetPlayerController()
             if not valid(pc) then return end
-            if pc:WasInputKeyJustPressed({KeyName=FName("F5")}) then M.reload() end
-            if pc:WasInputKeyJustPressed({KeyName=FName("F6")}) then M.status() end
-            if pc:WasInputKeyJustPressed({KeyName=FName("F7")}) then M.disable() end
-            if warningEnabled then
-                local warningOK,warningError=pcall(warningFX.tick,C,H.GetKismetSystemLibrary():GetGameTimeInSeconds(pc))
-                if not warningOK then warningEnabled=false;pcall(warningFX.clear);log("Warning colours disabled: "..tostring(warningError)) end
-            end
+            if pc:WasInputKeyJustPressed(hotkeys.F5) then M.reload() end
+            if pc:WasInputKeyJustPressed(hotkeys.F6) then M.status() end
+            if pc:WasInputKeyJustPressed(hotkeys.F7) then M.disable() end
             if not enabled then return end
-            if pc:WasInputKeyJustPressed({KeyName=FName(C.ParryKey)}) then triggerParry(pc) end
+            cache.tick(H.GetKismetSystemLibrary():GetGameTimeInSeconds(pc))
+            if pc:WasInputKeyJustPressed(parryKey) then triggerParry(pc) end
             local now=H.GetKismetSystemLibrary():GetGameTimeInSeconds(pc)
             tapFX.tick(now)
             if now<lastMaintenance or now-lastMaintenance>=1 then
+                for _,collection in ipairs({animationSnapshots,snapshots,actors}) do
+                    for name,s in pairs(collection) do if not valid(s.object) then collection[name]=nil end end
+                end
                 patchAssets(); patchMappings(); discoverActors(); lastMaintenance=now
             end
             for name,s in pairs(actors) do
@@ -297,7 +297,7 @@ function M.start()
                     local a=s.object
                     local ownAvatar=a:GetAvatarActorFromActorInfo()
                     if valid(ownAvatar) and valid(pc.Pawn) and ownAvatar:GetAddress()==pc.Pawn:GetAddress() then
-                        local guardDown=pc:IsInputKeyDown({KeyName=FName(C.GuardKey)})
+                        local guardDown=pc:IsInputKeyDown(guardKey)
                         local activePulse=s.pulseUntil and now<s.pulseUntil
                         local wantsGuard=guardDown or activePulse
                         if wantsGuard then
@@ -325,7 +325,7 @@ function M.start()
         end
         return false
     end)
-    log("0.2.2 ready; game-thread input polling; panel bridge online")
+    log("0.3.0 ready; game-thread input polling; panel bridge online")
     end)
 end
 return M

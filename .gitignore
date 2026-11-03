@@ -12,3 +12,10 @@ control.request
 control.status
 __pycache__/
 *.pyc
+
+# Local installation state and player backups must never be published.
+/OriginalFiles/
+/RetiredFiles/
+/SaveBackups/
+/backups/
+/install-state.json

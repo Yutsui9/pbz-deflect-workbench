@@ -102,7 +102,7 @@ local function reward(e,now,c)
             end
         end
     end
-    log(string.format("Success chain count=%d stacks=%d bonus refund=%.3f poise=%.3f",state.chain.count,stacks,bonusRefund,bonusPoise))
+    if c.Debug then log(string.format("Success chain count=%d stacks=%d bonus refund=%.3f poise=%.3f",state.chain.count,stacks,bonusRefund,bonusPoise)) end
     local amount=c.PerfectParryRefundPercent or 0.20
     assert(amount>=0 and amount<=0.25,"PerfectParryRefundPercent must be 0..0.25")
     amount=math.min(.50,amount+bonusRefund)
@@ -113,7 +113,7 @@ local function reward(e,now,c)
     local gain=math.max(0,math.min(maximum-before,maximum*amount))
     if gain>0 then lib:ModifyCharacterAttributeValue(e.defender,a.current,0,gain) end
     local after=lib:GetCharacterAttributeValue(e.defender,a.current)
-    log(string.format("Perfect success refund %.4f: %.4f -> %.4f (max %.4f, hit %.6f)",gain,before,after,maximum,e.time))
+    if c.Debug then log(string.format("Perfect success refund %.4f: %.4f -> %.4f (max %.4f, hit %.6f)",gain,before,after,maximum,e.time)) end
     if e.attacker:GetAddress()~=e.defender:GetAddress() then
         local ok,err=pcall(function()
             local fraction=c.PerfectParryPoisePercent or 0.08
@@ -125,7 +125,7 @@ local function reward(e,now,c)
             local damage=math.max(0,math.min(original,limit*fraction))
             if damage>0 then lib:ModifyCharacterAttributeValue(e.attacker,enemy.current,0,-damage) end
             local remaining=lib:GetCharacterAttributeValue(e.attacker,enemy.current)
-            log(string.format("Perfect success instant poise %.4f: %.4f -> %.4f (max %.4f) target=%s",damage,original,remaining,limit,e.attacker:GetFullName()))
+            if c.Debug then log(string.format("Perfect success instant poise %.4f: %.4f -> %.4f (max %.4f) target=%s",damage,original,remaining,limit,e.attacker:GetFullName())) end
         end)
         if not ok then log("Instant poise skipped: "..tostring(err)) end
     end
@@ -139,9 +139,11 @@ function R.tick(now,c)
     for _,v in ipairs({c.SuccessChainRefundStep or .02,c.SuccessChainPoiseStep or .02}) do assert(v>=0 and v<=.05,"Invalid success chain bonus") end
     if now<state.lastMaintenance or now-state.lastMaintenance>=1 then
         install();state.lastMaintenance=now
+        for key,a in pairs(state.attrs) do if not valid(a.actor) then state.attrs[key]=nil end end
         for key,time in pairs(state.seen) do if now<time or now-time>10 then state.seen[key]=nil end end
     end
-    local events=state.queue;state.queue={}
+    local events=state.queue
+    if #events>0 then state.queue={} end
     for _,e in ipairs(events) do
         local ok,err=pcall(reward,e,now,c)
         if not ok then log("Perfect reward skipped: "..tostring(err)) end

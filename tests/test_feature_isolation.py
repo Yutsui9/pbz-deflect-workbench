@@ -22,21 +22,21 @@ function LoopInGameThreadWithDelay(_,f) frame=f end
 function loadfile(path)
  if path:find('config.lua',1,true) then return function() return config end end
  if path:find('parry_fx.lua',1,true) then return function() return {tick=function() counts.fx=counts.fx+1 end,clear=function() end} end end
- if path:find('warning_colors.lua',1,true) then return function() return {tick=function(c) assert(c.WarningColorsEnabled);counts.warning=counts.warning+1 end,clear=function() counts.clear=counts.clear+1 end} end end
+ if path:find('warning_colors.lua',1,true) then error('combat must never load warning module') end
  if path:find('panel_bridge.lua',1,true) then return function() return {start=function(api) bridge=api end} end end
  return realLoad(path)
 end
 local m=assert(loadfile(root..'combat.lua'))();m.start();frame()
-assert(bridge.enabled()==combat_on and bridge.warningEnabled()==colour_on)
-assert(counts.warning==(colour_on and 1 or 0),'colour follows only its switch')
+assert(bridge.enabled()==combat_on and not bridge.warningEnabled())
+assert(counts.warning==0,'legacy colour flag must be ignored')
 assert(counts.fx==(combat_on and 1 or 0),'combat feedback follows only its switch')
 assert(combat_on or counts.scan==0,'colour-only must not discover combat assets or actors')
 config.Enabled=false;config.WarningColorsEnabled=true;m.reload();frame()
-assert(not bridge.enabled() and bridge.warningEnabled(),'switch to colour-only')
+assert(not bridge.enabled() and not bridge.warningEnabled(),'legacy colour-only is inactive')
 m.disable();assert(not bridge.enabled() and not bridge.warningEnabled(),'F7 disables both')
 local before=counts.warning;frame();assert(counts.warning==before)
-m.reload();frame();assert(counts.warning==before+1,'F5 restores saved independent mode')
+m.reload();frame();assert(counts.warning==before,'F5 cannot enable old colour module')
 config.FeatureSwitchVersion=nil;config.Enabled=false;config.WarningColorsEnabled=true;m.reload();frame()
 assert(not bridge.warningEnabled(),'legacy disabled remains disabled')
 ''')
-print('PASS: four runtime modes, colour-only skips combat, mode transitions, F7/F5, legacy migration')
+print('PASS: combat-only runtime; legacy colour flags never load colour script; disable and reload isolation')

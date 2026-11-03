@@ -25,6 +25,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_feature_isolation.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_runtime_performance.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_warning_colors.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and verify panel and deployment

@@ -29,7 +29,7 @@ namespace PBZGuardPanel {
             shell.RowStyles.Add(new RowStyle(SizeType.Absolute,36));shell.RowStyles.Add(new RowStyle(SizeType.Absolute,58));Controls.Add(shell);
             var header=new Panel{Dock=DockStyle.Fill};shell.Controls.Add(header,0,0);
             header.Controls.Add(new Label{Text="卸势调校台",Font=new Font(Font.FontFamily,22,FontStyle.Bold),ForeColor=ink,AutoSize=true,Location=new Point(0,0)});
-            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.2.11",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
+            header.Controls.Add(new Label{Text="影之刃零  /  本地面板 · 0.3.0",ForeColor=muted,AutoSize=true,Location=new Point(3,47)});
             connection.AutoSize=true;connection.Location=new Point(3,78);connection.ForeColor=Color.FromArgb(111,214,195);header.Controls.Add(connection);
             configState.AutoSize=true;configState.Anchor=AnchorStyles.Right|AnchorStyles.Top;configState.TextAlign=ContentAlignment.MiddleRight;configState.Location=new Point(625,18);header.Controls.Add(configState);
             var tabs=new TabControl{Dock=DockStyle.Fill,Padding=new Point(20,9),DrawMode=TabDrawMode.OwnerDrawFixed};
@@ -37,8 +37,7 @@ namespace PBZGuardPanel {
             shell.Controls.Add(tabs,0,1);
             var modes=Page(tabs,"功能开关");
             AddCheck(modes,"启用卸势调校","独立键鼠输入、窗口、耗气、奖励与动作反馈。","Enabled");
-            AddCheck(modes,"启用预警换色（试验）","闪避黄光、卸势红光；不要求开启卸势调校。","WarningColorsEnabled");
-            AddNote(modes,"两个开关独立生效：仅换色 / 仅卸势 / 同时开启 / 全部关闭。\n勾选后点击应用设置；还原游戏原版会关闭两个功能并保留调参。");
+            AddNote(modes,"本面板仅管理卸势调校。预警换色已拆为独立资源包，无需 UE4SS。\n卸势开关与还原操作不影响独立换色包。");
             var keys=Page(tabs,"按键与招架");
             AddKey(keys,"持续防御键","长按保持防御，松开结束。","GuardKey");
             AddKey(keys,"点按招架键","每次按下触发一次招架，长按不会连发。","ParryKey");
@@ -58,9 +57,6 @@ namespace PBZGuardPanel {
             AddNumber(feedback,"剑光最小间隔","两次闪光起点之间的间隔，需比时长至少多 60 毫秒。","BladeFlashMinInterval",100,2000,10,0,1000,"毫秒");
             AddCheck(feedback,"启用轻金属音效","每次有效点按播放，长按防御不会持续播放。","ParryTapSound");
             AddNumber(feedback,"附加音效音量","相对这段原生音效的输出增益，0 为静音。","ParryTapSoundVolume",0,100,1,0,100,"%");
-            var warning=Page(tabs,"出招预警");
-            AddNote(warning,"请在“功能开关”页独立开启预警换色。仅换色时保留原版战斗。 ");
-            AddNote(warning,"保留原来的提示时机与招式判定；关闭可恢复原配色。\n教学提示同步为格挡红光、闪避黄光；处于试验阶段。");
             var streak=Page(tabs,"连续卸势奖励");
             AddCheck(streak,"启用连续成功奖励","成功清除已积累的连按惩罚；从第二次成功起叠加奖励。","SuccessChainEnabled");
             AddNumber(streak,"成功衔接时间","在此时间内再次成功可续连胜；空按落空或普通防御清空。","SuccessChainTimeout",1,15,.5m,1,1,"秒");
@@ -81,7 +77,7 @@ namespace PBZGuardPanel {
             message.Dock=DockStyle.Fill;message.ForeColor=muted;message.TextAlign=ContentAlignment.MiddleLeft;message.AutoEllipsis=true;shell.Controls.Add(message,0,2);
             var footer=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft,WrapContents=false,Padding=new Padding(0,5,0,0)};shell.Controls.Add(footer,0,3);
             Button apply=Button("应用设置",Color.FromArgb(33,129,116),()=>Apply());footer.Controls.Add(apply);
-            footer.Controls.Add(Button("还原游戏原版",Color.FromArgb(113,64,62),()=>RestoreVanilla()));
+            footer.Controls.Add(Button("还原卸势原版",Color.FromArgb(113,64,62),()=>RestoreVanilla()));
             footer.Controls.Add(Button("载入推荐参数",surface,()=>{var preset=new GuardConfig();preset.Enabled=loaded.Enabled;preset.WarningColorsEnabled=loaded.WarningColorsEnabled;Fill(preset);message.Text="已载入当前推荐值，点击“应用设置”后生效。";}));
             footer.Controls.Add(Button("重新读取",surface,()=>Reload()));
             footer.Controls.Add(Button("配置备份",surface,()=>RestoreBackup()));
@@ -153,7 +149,7 @@ namespace PBZGuardPanel {
             c.Validate();return c;
         }
         void Reload(){Fill(store.Load());message.Text="表单修改在点击“应用设置”后生效。每次保存会自动备份。";}
-        void Apply(){var c=ReadForm();pending=store.Apply(c);Fill(c);message.Text="已保存，等待游戏接收；未连接时将在下次启动自动应用。";RefreshStatus();}
+        void Apply(){var c=ReadForm();c.WarningColorsEnabled=false;pending=store.Apply(c);Fill(c);message.Text="已保存，等待游戏接收；未连接时将在下次启动自动应用。";RefreshStatus();}
         void RestoreVanilla(){pending=store.RestoreVanilla();Fill(store.Load());message.Text="已保存原版状态，调好的参数和隔离存档均保留。";RefreshStatus();}
         void RestoreBackup() {
             Directory.CreateDirectory(store.BackupPath);
@@ -171,8 +167,7 @@ namespace PBZGuardPanel {
                     connection.ForeColor=muted;return;
                 }
                 bool enabled=s.ContainsKey("enabled")&&s["enabled"]=="1";
-                bool warningEnabled=s.ContainsKey("warning_enabled")&&s["warning_enabled"]=="1";
-                connection.Text="● 游戏已连接 · 卸势"+(enabled?"开":"关")+" / 换色"+(warningEnabled?"开":"关");connection.ForeColor=enabled?Color.FromArgb(111,214,195):Color.FromArgb(232,193,122);
+                connection.Text="● 游戏已连接 · 卸势"+(enabled?"开":"关");connection.ForeColor=enabled?Color.FromArgb(111,214,195):Color.FromArgb(232,193,122);
                 if(pending!="" && s.ContainsKey("request") && s["request"]==pending) {
                     message.Text=s.ContainsKey("result")&&s["result"]=="error"?"游戏应用失败："+(s.ContainsKey("message")?s["message"]:""):"游戏已应用当前设置。";pending="";
                 }

@@ -86,6 +86,13 @@ foreach($rel in $relative) {
     New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $package $rel) -Destination $target -Force
 }
+# v0.3.0 no longer ships or loads the old runtime colour module.
+$legacyColour=In-Root $game 'platform\steam\ue4ss\Mods\PBZYanyunGuard\Scripts\warning_colors.lua'
+if(Test-Path -LiteralPath $legacyColour){
+    $retired=In-Root $work ('RetiredFiles\'+$stamp+'\warning_colors.lua')
+    New-Item -ItemType Directory -Path (Split-Path $retired) -Force | Out-Null
+    Move-Item -LiteralPath $legacyColour -Destination $retired
+}
 Write-Output ('安装完成。存档备份/回滚记录：'+$work)
 Write-Output ('打开：'+(Join-Path $game '卸势调校台.exe'))
-Write-Output '再从 Steam 启动游戏；已存在的配置会保留，选择独立功能开关并点击“应用设置”。'
+Write-Output '再从 Steam 启动游戏；已存在的配置会保留，选择卸势开关并点击“应用设置”。'
